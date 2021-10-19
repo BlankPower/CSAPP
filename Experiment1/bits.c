@@ -132,7 +132,6 @@ NOTES:
  *      the correct answers.
  */
 
-
 #endif
 //1
 /* 
@@ -142,7 +141,8 @@ NOTES:
  *   Max ops: 14
  *   Rating: 1
  */
-int bitXor(int x, int y) {
+int bitXor(int x, int y)
+{
   /* x xor y = (x & ~y) + (~x & y)  */
   return ~(~(~x & y) & ~(x & ~y));
 }
@@ -152,7 +152,8 @@ int bitXor(int x, int y) {
  *   Max ops: 4
  *   Rating: 1
  */
-int tmin(void) {
+int tmin(void)
+{
   /* tmin = -2^31 */
   return (1 << 31);
 }
@@ -164,7 +165,8 @@ int tmin(void) {
  *   Max ops: 10
  *   Rating: 1
  */
-int isTmax(int x) {
+int isTmax(int x)
+{
   /* 
    * Tmax = 0x7FFFFFFF
    * Tmax + 1 = 0x80000000
@@ -182,7 +184,8 @@ int isTmax(int x) {
  *   Max ops: 12
  *   Rating: 2
  */
-int allOddBits(int x) {
+int allOddBits(int x)
+{
   /* x | 0x55555555 = 0xFFFFFFFF */
   int mask = 0x55 + (0x55 << 8) + (0x55 << 16) + (0x55 << 24);
   return !(~(mask | x));
@@ -194,7 +197,8 @@ int allOddBits(int x) {
  *   Max ops: 5
  *   Rating: 2
  */
-int negate(int x) {
+int negate(int x)
+{
   return (~x + 1);
 }
 //3
@@ -207,7 +211,8 @@ int negate(int x) {
  *   Max ops: 15
  *   Rating: 3
  */
-int isAsciiDigit(int x) {
+int isAsciiDigit(int x)
+{
   /* 
    * - 0x30 = 0xFFFFFFD0
    * - 0x39 = 0xFFFFFFC7
@@ -223,7 +228,8 @@ int isAsciiDigit(int x) {
  *   Max ops: 16
  *   Rating: 3
  */
-int conditional(int x, int y, int z) {
+int conditional(int x, int y, int z)
+{
   int flag = !x;
   flag = ~flag + 1;
   return (y & ~flag) + (z & flag);
@@ -235,7 +241,8 @@ int conditional(int x, int y, int z) {
  *   Max ops: 24
  *   Rating: 3
  */
-int isLessOrEqual(int x, int y) {
+int isLessOrEqual(int x, int y)
+{
   int sx = (x >> 31) & 0x01;
   int sy = (y >> 31) & 0x01;
   int tmp1 = sx & (!sy);
@@ -252,8 +259,9 @@ int isLessOrEqual(int x, int y) {
  *   Max ops: 12
  *   Rating: 4 
  */
-int logicalNeg(int x) {
-  return ((x | (~x +1)) >> 31) + 1;
+int logicalNeg(int x)
+{
+  return ((x | (~x + 1)) >> 31) + 1;
 }
 /* howManyBits - return the minimum number of bits required to represent x in
  *             two's complement
@@ -267,8 +275,23 @@ int logicalNeg(int x) {
  *  Max ops: 90
  *  Rating: 4
  */
-int howManyBits(int x) {
-  return 0;
+int howManyBits(int x)
+{
+  int sign, bit16, bit8, bit4, bit2, bit1, bit0;
+  sign = x >> 31;
+  x = (~x & sign) | (~sign & x);
+  bit16 = !!(x >> 16) << 4;
+  x = x >> bit16;
+  bit8 = !!(x >> 8) << 3;
+  x = x >> bit8;
+  bit4 = !!(x >> 4) << 2;
+  x = x >> bit4;
+  bit2 = !!(x >> 2) << 1;
+  x = x >> bit2;
+  bit1 = !!(x >> 1);
+  x = x >> bit1;
+  bit0 = x;
+  return bit16 + bit8 + bit4 + bit2 + bit1 + bit0 + 1;
 }
 //float
 /* 
@@ -282,8 +305,15 @@ int howManyBits(int x) {
  *   Max ops: 30
  *   Rating: 4
  */
-unsigned floatScale2(unsigned uf) {
-  return 2;
+unsigned floatScale2(unsigned uf)
+{
+  if (uf == 0 || uf == (1 << 31))
+    return uf;
+  if (((uf >> 23) & 0xff) == 0xff)
+    return uf;
+  if (((uf >> 23) & 0xff) == 0x00)
+    return ((uf & 0x007FFFFF) << 1) | ((1 << 31) & uf);
+  return uf + (1 << 23);
 }
 /* 
  * floatFloat2Int - Return bit-level equivalent of expression (int) f
@@ -297,8 +327,29 @@ unsigned floatScale2(unsigned uf) {
  *   Max ops: 30
  *   Rating: 4
  */
-int floatFloat2Int(unsigned uf) {
-  return 2;
+int floatFloat2Int(unsigned uf)
+{
+  int sign = (uf >> 31) & 0x1;
+  int e = (uf >> 23) & 0xFF;
+  int frac = uf & 0x7FFFFF;
+
+  int exponent = e - 127;
+  int newFrac = 0x1000000 + frac;
+  int shifted;
+
+  if (exponent < 0 || e == 0)
+    return 0;
+  if (exponent >= 31 || e == 0xFF)
+    return 0x80000000;
+
+  if (exponent > 24)
+    shifted = newFrac << (exponent - 24);
+  else
+    shifted = newFrac >> (24 - exponent);
+
+  if (sign)
+    shifted = -shifted;
+  return shifted;
 }
 /* 
  * floatPower2 - Return bit-level equivalent of the expression 2.0^x
@@ -313,6 +364,22 @@ int floatFloat2Int(unsigned uf) {
  *   Max ops: 30 
  *   Rating: 4
  */
-unsigned floatPower2(int x) {
-    return 2;
+unsigned floatPower2(int x)
+{
+  if (x > 127)
+  {
+    return 0xFF << 23; // NaN
+  }
+  else if (x < -148)
+    return 0;
+  else if (x >= -126)
+  {
+    int exp = x + 127;
+    return (exp << 23);
+  }
+  else
+  {
+    int t = 148 + x;
+    return (1 << t);
+  }
 }
