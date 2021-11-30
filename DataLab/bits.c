@@ -334,7 +334,7 @@ int floatFloat2Int(unsigned uf)
   int frac = uf & 0x7FFFFF;
 
   int exponent = e - 127;
-  int newFrac = 0x1000000 + frac;
+  int newFrac = 0x800000 + frac;
   int shifted;
 
   if (exponent < 0 || e == 0)
@@ -342,10 +342,10 @@ int floatFloat2Int(unsigned uf)
   if (exponent >= 31 || e == 0xFF)
     return 0x80000000;
 
-  if (exponent > 24)
-    shifted = newFrac << (exponent - 24);
+  if (exponent > 23)
+    shifted = newFrac << (exponent - 23);
   else
-    shifted = newFrac >> (24 - exponent);
+    shifted = newFrac >> (23 - exponent);
 
   if (sign)
     shifted = -shifted;
